@@ -1,0 +1,61 @@
+name: Bot Automation Workflow
+
+on:
+  push:
+    branches:
+      - main  # This will trigger the workflow when changes are pushed to the 'main' branch
+  workflow_dispatch:  # This allows manual triggering of the workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run bot.py with a timeout (in minutes)
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          ADMIN: ${{ secrets.ADMIN }}
+        run: |
+          # Set timeout duration in minutes
+          TIMEOUT_MINUTES=5  # Set this value to the desired number of minutes
+          
+          # Convert minutes to seconds
+          TIMEOUT_SECONDS=$((TIMEOUT_MINUTES * 60))
+
+          # Run bot.py with the calculated timeout
+          timeout $TIMEOUT_SECONDS python bot.py  # Run bot.py with the timeout in seconds
+
+      - name: Clean specific temp files and large files
+        run: |
+          # Clean specific directories related to the bot
+          rm -rf /home/runner/work/Testing/Testing/temp/* || true
+
+          # Remove large files (over 500k) safely
+          find . -type f -size +500k -exec rm -f {} \; || true
+
+      - name: Post job cleanup
+        run: |
+          # Additional cleanup steps if needed
+          rm -rf /tmp/* || true  # Avoid cleaning system-critical files, only target temp files you control
+          find . -type f -size +500k -exec rm -f {} \; || true
+
+      - name: Git config and cleanup
+        run: |
+          git version
+          git config --global --add safe.directory /home/runner/work/Testing/Testing
+          git config --local --unset-all core.sshCommand
+          git config --local --unset-all http.https://github.com/.extraheader
